@@ -1,4 +1,4 @@
-use crate::ast::OperationType;
+use crate::parser::OperationType;
 
 #[derive(Debug)]
 pub enum TokenType{

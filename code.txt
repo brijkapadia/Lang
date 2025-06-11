@@ -1,14 +1,11 @@
-fn main(){
-    let num = 5.;
-    let string = "hello world";
-    let iterations = 0;
-    while num > 1{
-        if num % 2 == 0{
-            num = num/2
-        }
-        elif num%2 == 1{
-            num = 3*num +1
-        }
-        iterations += 1;
+let iterations = 0;
+while num > 1{
+    if num % 2 == 0{
+        num = num/2
     }
+    elif num%2 == 1{
+        num = 3*num +1
+    }
+    iterations += 1;
 }
+exit(iterations)

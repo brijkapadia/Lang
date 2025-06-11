@@ -1,11 +1,11 @@
 mod reader;
 mod tokens;
 mod lexer;
+
 mod parser;
 mod ast;
 // mod compiler;
 mod error;
-// mod logger;
 use std::env;
 // use std::fs;
 use error as E;
@@ -20,18 +20,16 @@ fn main() -> E::Result<()>{
     tokenizer.tokenize()?;
     let tokens = tokenizer.tokens;
     
-    println!("{:?}",tokens);
-
-    return Ok(());
+    //return Ok(())
     
     let mut parser = parser::Parser::new(tokens);
     parser.produce_ast();
-    // let program = parser.program_scope;
+    let program = parser.program_scope;
+
+    println!("{:?}",program);
 
 
-    // return Ok(());
-
-    // // //logger::print_parse_tree(&program);
+    return Ok(());
 
     // // let mut compiler = compiler::Compiler::new("test");
     // // compiler.compile(program);

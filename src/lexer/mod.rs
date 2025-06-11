@@ -3,7 +3,7 @@ use crate::reader::Reader;
 use crate::tokens::TokenList;
 use crate::tokens::TokenType;
 
-use crate::ast::OperationType;
+use super::parser::OperationType;
 
 use crate::error as E;
 mod error;
