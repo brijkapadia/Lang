@@ -5,7 +5,7 @@ use crate::tokens::TokenList;
 use crate::tokens::TokenType;
 use crate::tokens::Token;
 use crate::error::Result as R;
-//mod expr;
+mod expr;
 mod expr_types;
 //mod identifier;
 
@@ -52,8 +52,9 @@ impl Parser{
         Ok(())
     }
 
-    fn parse_expr(&self) -> R<expr_types::Expr>{
-        panic!()
+    fn parse_expr(&mut self) -> R<expr_types::Expr>{
+        let mut expr_parser = expr::ExprParser::new(&mut self.tokens);
+        expr_parser.parse_expr(0.0)
     }
 
     fn parse_stmt(&mut self) -> R<ast::Stmt>{
@@ -91,6 +92,7 @@ impl Parser{
             Ok(ast::Stmt::new_var_dec(Rc::clone(&var_name), None))
         }
         else if matches!(self.current_token_guarantee()?.token_type,TokenType::Assign){
+            self.consume();
             let statement = ast::Stmt::new_var_dec(Rc::clone(&var_name), Some(self.parse_expr()?));
             self.consume(); //get rid of last semicolon
             Ok(statement)

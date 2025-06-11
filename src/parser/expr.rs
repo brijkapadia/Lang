@@ -9,18 +9,19 @@ use crate::tokens::Token;
 
 use crate::error::Result as R;
 
-struct ExprParser<'a>{
+pub struct ExprParser<'a>{
     tokens: &'a mut TokenList,
-    identifiers: &'a Identfiers
+    //identifiers: &'a Identfiers
 }
 
 impl<'a> ExprParser<'a>{
-    fn new(tokens: &'a mut TokenList,identifiers: &'a Identfiers) -> Self{
-        Self {tokens, identifiers}
+    pub fn new(tokens: &'a mut TokenList) -> Self{
+        Self {tokens}
     }
 
-    fn parse_expr(&mut self, prev_binding_power: f32) -> R<Expr>{
+    pub fn parse_expr(&mut self, prev_binding_power: f32) -> R<Expr>{
         let left_token = self.tokens.pop_token();
+        println!("{:?}",left_token);
         let mut left_expression = match left_token.token_data {
             TokenData::Identifier(identifier) => self.parse_identifier(identifier),
             TokenData::Integer(int) => Ok(Expr::new_int_literal(int)),
@@ -30,25 +31,23 @@ impl<'a> ExprParser<'a>{
             TokenData::String(str) => panic!("str not available yet"),
             TokenData::Operation(op) => return Err(format!("Found operation {:?} at the start of an expression",op).into()),
             TokenData::None => return Err("Found token with no data".into())
-        };
+        }?;
 
         loop{
             let next_token =  self.tokens.first().ok_or("EOF before finished parsing expression")?;
-            if matches!(next_token.token_type,TokenType::EOL){
-                break Ok(left_expression)
-            }
             if let TokenData::Operation(op) = &next_token.token_data{
                 let binding_power = op.get_binding_power();
                 if prev_binding_power > binding_power.0{
                     break Ok(left_expression)
                 } else{
-                    let right_expression = self.parse_expr(binding_power.1)?;
-                    if let  TokenData::Operation(op_type )= self.tokens.pop_token().token_data{
+                    if let TokenData::Operation(op_type )= self.tokens.pop_token().token_data{
+                        let right_expression = self.parse_expr(binding_power.1)?;
                         left_expression = Expr::BinaryExpr(BinaryExpr::new(left_expression,right_expression,op_type));
+                        println!("{:?}",left_expression);
                     }
                 }
             } else{
-                break Err(format!("Found non operation token in expression: {:?}",next_token).into())
+                return Ok(left_expression);
             }
         }
     }

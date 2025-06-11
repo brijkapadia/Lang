@@ -56,6 +56,7 @@ impl OperationType {
         match self{
             Self::Add | Self::Subtract => (1.,1.),
             Self::Multiply | Self::Divide => (2.,2.),
+            Self::Greater | Self::GreaterEq | Self::Less | Self::LessEq | Self::Eq => (3., 3.),
             _ => panic!()
         }
     }
