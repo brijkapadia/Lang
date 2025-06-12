@@ -126,6 +126,7 @@ impl Tokenizer{
             '[' => self.tokens.push_new_token(TokenType::OpenSquare),
             ']' => self.tokens.push_new_token(TokenType::CloseSquare),
             ';' => self.tokens.push_new_token(TokenType::EOL),
+            '%' => self.tokens.push_new_operation(OperationType::Mod,TokenType::BinaryOp),
             '\'' => self.tokenize_char()?,
             '\"' => self.tokenize_string()?,
             ',' => self.tokens.push_new_token(TokenType::Comma),

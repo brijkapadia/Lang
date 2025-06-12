@@ -21,46 +21,57 @@ impl<'a> ExprParser<'a>{
 
     pub fn parse_expr(&mut self, prev_binding_power: f32) -> R<Expr>{
         let left_token = self.tokens.pop_token();
-        println!("{:?}",left_token);
-        let mut left_expression = match left_token.token_data {
-            TokenData::Identifier(identifier) => self.parse_identifier(identifier),
-            TokenData::Integer(int) => Ok(Expr::new_int_literal(int)),
-            TokenData::Float(float) => Ok(Expr::new_float_literal(float)),
-            TokenData::Boolean(bool) => Ok(Expr::new_bool_literal(bool)),
-            TokenData::Character(char) => panic!("chars not available yet"),
-            TokenData::String(str) => panic!("str not available yet"),
-            TokenData::Operation(op) => return Err(format!("Found operation {:?} at the start of an expression",op).into()),
-            TokenData::None => return Err("Found token with no data".into())
-        }?;
+        if let TokenType::OpenParen = left_token.token_type{
+            self.parse_expr(0.0)?;
+
+        }
+        let mut left_expression = 
+        match left_token.token_type{
+            TokenType::OpenParen => {
+                let result = self.parse_expr(0.0)?;
+                self.tokens.pop_token();
+                result
+            }
+            _ => match left_token.token_data {
+                TokenData::Identifier(identifier) => self.parse_identifier(identifier)?,
+                TokenData::Integer(int) => Expr::new_int_literal(int),
+                TokenData::Float(float) => Expr::new_float_literal(float),
+                TokenData::Boolean(bool) => Expr::new_bool_literal(bool),
+                TokenData::Character(char) => Expr::new_char_literal(char),
+                TokenData::String(str) => Expr::new_string_literal(str),
+                TokenData::Operation(op) => return Err(format!("Found operation {:?} at the start of an expression",op).into()),
+                TokenData::None => return Err("Found token with no data".into())
+            }
+        };
 
         loop{
-            let next_token =  self.tokens.first().ok_or("EOF before finished parsing expression")?;
-            if let TokenData::Operation(op) = &next_token.token_data{
-                let binding_power = op.get_binding_power();
-                if prev_binding_power > binding_power.0{
-                    break Ok(left_expression)
-                } else{
-                    if let TokenData::Operation(op_type )= self.tokens.pop_token().token_data{
-                        let right_expression = self.parse_expr(binding_power.1)?;
-                        left_expression = Expr::BinaryExpr(BinaryExpr::new(left_expression,right_expression,op_type));
-                        println!("{:?}",left_expression);
-                    }
-                }
-            } else{
-                return Ok(left_expression);
+            let next_token =  self.tokens.first_guarantee()?;
+            match &next_token.token_data{
+            TokenData::Operation(op) =>{
+                let (left_binding_power,right_binding_power) = op.get_binding_power();
+                if prev_binding_power > left_binding_power{
+                    return Ok(left_expression)
+                } 
+                let TokenData::Operation(op_type ) = self.tokens.pop_token().token_data else{
+                    unreachable!("could not consume op type");
+                };
+                let right_expression = self.parse_expr(right_binding_power)?;
+                left_expression = Expr::BinaryExpr(BinaryExpr::new(left_expression,right_expression,op_type));
+            } 
+            _ => return Ok(left_expression)
             }
         }
     }
 
     fn parse_identifier(&self, identifier: String) -> R<Expr>{
-        if matches!(self.tokens.first().ok_or("unexpected eof")?.token_type,TokenType::OpenParen){
+        if matches!(self.tokens.first_guarantee()?.token_type,TokenType::OpenParen){
             self.parse_function()
         }
         self.parse_variable(identifier)
     }
 
     fn parse_function(&self){
-        panic!("Not implimented")
+        todo!("Not implimented")
     }
 
     fn parse_variable(&self, var_name: String) -> R<Expr>{

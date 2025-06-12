@@ -1,4 +1,5 @@
 use crate::parser::OperationType;
+use crate::error::Result as R;
 
 #[derive(Debug)]
 pub enum TokenType{
@@ -148,6 +149,10 @@ impl TokenList{
 
     pub fn first(&self) -> Option<&Token>{
         self.token_list.first()
+    }
+    pub fn first_guarantee(&self) -> R<&Token>{
+        self.first().ok_or("Unexpected EOF".into())
+
     }
     pub fn first_type(&self) -> Option<&TokenType>{
         self.first().map(|token| &token.token_type)

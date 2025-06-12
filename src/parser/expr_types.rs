@@ -20,6 +20,12 @@ impl Expr{
     pub fn new_var_literal(name: String) -> Expr{
         Expr::Atom(Atom::VarLiteral(name))
     }
+    pub fn new_char_literal(value: char) -> Expr{
+        Expr::Atom(Atom::CharLiteral(value))
+    }
+    pub fn new_string_literal(value: String) -> Expr{
+        Expr::Atom(Atom::StringLiteral(value.into()))
+    }
 }
 
 #[derive(Debug)]
@@ -27,7 +33,9 @@ enum Atom{
     IntLiteral(i32),
     FloatLiteral(f32),
     BoolLiteral(bool),
-    VarLiteral(String)
+    VarLiteral(String),
+    CharLiteral(char),
+    StringLiteral(Box<str>)
 }
 
 #[derive(Debug)]
@@ -38,6 +46,8 @@ pub enum OperationType{
     Multiply,
     Divide,
     Power,
+
+    Mod,
 
     And,
     Or,
@@ -54,10 +64,11 @@ pub enum OperationType{
 impl OperationType {
     pub fn get_binding_power(&self) -> (f32,f32){
         match self{
-            Self::Add | Self::Subtract => (1.,1.),
-            Self::Multiply | Self::Divide => (2.,2.),
-            Self::Greater | Self::GreaterEq | Self::Less | Self::LessEq | Self::Eq => (3., 3.),
-            _ => panic!()
+            Self::Greater | Self::GreaterEq | Self::Less | Self::LessEq | Self::Eq => (1., 1.),
+            Self::Mod => (2.,2.),
+            Self::Add | Self::Subtract => (2.,2.),
+            Self::Multiply | Self::Divide => (3.,3.),
+            _ => todo!()
         }
     }
 }

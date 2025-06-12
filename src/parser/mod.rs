@@ -128,9 +128,7 @@ impl Parser{
         while !matches!(self.current_token_type_guarantee()?,tokens::TokenType::CloseCurl){
             scope.push(self.parse_stmt()?);
         }
-
-        self.consume(); //consumes close curl
-        
+        self.consume();        
        Ok(scope)
     }
 
@@ -138,6 +136,7 @@ impl Parser{
         self.consume(); //consumes if
 
         let condition = self.parse_expr()?;
+        
         let if_scope = self.parse_scope()?;
         Ok(ast::Stmt::If(ast::If::new(condition,if_scope)))
     }
@@ -153,7 +152,8 @@ impl Parser{
 
         let condition = self.parse_expr()?;
         let while_scope = self.parse_scope()?;
-        Ok(ast::Stmt::While(ast::While::new(condition,while_scope)))
+        let x = ast::Stmt::While(ast::While::new(condition,while_scope));
+        Ok(x)
     }
     fn parse_else(&mut self) -> R<ast::Stmt>{
         self.consume(); //consumes else

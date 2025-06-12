@@ -23,7 +23,7 @@ fn main() -> E::Result<()>{
     //return Ok(())
     
     let mut parser = parser::Parser::new(tokens);
-    parser.produce_ast();
+    parser.produce_ast()?;
     let program = parser.program_scope;
 
     println!("{:?}",program);
