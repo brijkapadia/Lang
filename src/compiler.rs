@@ -1,4 +1,7 @@
 use crate::ast;
+
+use crate::parser::{Atom,BinaryExpr,Expr,OperationType};
+
 use std::io::Write;
 use std::fs::File;
 use std::collections::HashMap;
@@ -47,7 +50,7 @@ main:
         self.write("sub rsp, 4");
         self.write(format!("mov [rbp-{}], eax",{self.stack_pos}).as_str());
     }
-    pub fn compile(&mut self, program: ast::Program){
+    pub fn compile(&mut self, program: ast::Scope){
         self.pre_write();
     
         // where compiler starts; all enter + exits taken care of; starts in main: 
@@ -56,59 +59,69 @@ main:
         self.post_write();
     
     }
-    fn generate_var_dec(&mut self,var: ast::VarDec){
-        self.stack_pos +=  4;
-        let stack_var = self.stack_pos;
-        self.write("sub rsp, 4");
-        self.variable_map.insert(var.name, stack_var);
-        match var.value{
-            Some(value) => {
-                let expr = self.generate_expr(value); 
-                match expr{
-                    Some(n) => self.write(format!("mov dword [rbp-{}], {}",stack_var,n).as_str()),
-                    None => self.write(format!("mov [rbp-{}], eax",stack_var).as_str())}
-                },
-            None => return
-        }
-
-    }
-
-    fn generate_scope(&mut self, scope: ast::Scope){
-        self.write("push rbp");
-        self.write("mov rbp, rsp");
-
-        for stmt in scope.stmts{
+    fn evaluate_program(&mut self, scope: ast::Scope) {
+        for stmt in scope.body{
             self.evaluate_stmt(stmt);
         }
-
-        self.write("leave");
     }
-
     fn evaluate_stmt(&mut self, stmt: ast::Stmt){
         match stmt{
-                ast::Stmt::VarDec(var) => self.generate_var_dec(var),
-                ast::Stmt::VarUpdate(var) => self.generate_var_update(var),
+                ast::Stmt::VariableDeclaration(var) => self.generate_var_dec(var),
+                ast::Stmt::VariableUpdate(var) => self.generate_var_update(var),
                 ast::Stmt::Expr(_) => {} //TODO: expr in programs
-                ast::Stmt::Scope(scope) => self.generate_scope(scope)
+                ast::Stmt::Scope(scope) => self.generate_scope(scope),
+                ast::Stmt::While(w) => self.generate_while(w)
             }
     }
 
-    fn evaluate_program(&mut self, program: ast::Program) {
-        for stmt in program.body{
-            self.evaluate_stmt(stmt);
-        }
-
+    fn generate_while(&mut self, w: ast::While){
+        todo!()
     }
-    //return value goes in rax
-    fn generate_var_update(&mut self, var: ast::VarUpdate){
-        match self.generate_expr(var.value){
-            None => self.write(format!("mov [rbp-{}], rax",self.variable_map.get(var.name.as_str()).unwrap()).as_str()),
-            Some(n) => self.write(format!("mov [rbp-{}], {}",self.variable_map.get(var.name.as_str()).unwrap(),n).as_str())
+
+    fn generate_var_dec(&mut self,variable_declaration: ast::VariableDeclaration){
+        let size = variable_declaration.data.variable_bytes;
+        self.stack_pos += size;
+        let variable_position_in_stack = self.stack_pos;
+        variable_declaration.data.stack_position.set(self.stack_pos);
+        self.write(&format!("sub rsp, {}",size));
+        let expression = self.generate_expr(variable_declaration.value);
+        match expression{
+            Some(n) => self.write(format!("mov dword [rbp-{}], {}",variable_position_in_stack,n).as_str()),
+            None => self.write(format!("mov [rbp-{}], eax",variable_position_in_stack).as_str())
+        }
+    }
+
+    fn generate_var_update(&mut self, variable: ast::VariableUpdate){
+        match self.generate_expr(variable.value){
+            None => self.write(&format!("mov [rbp-{}], rax",variable.data.stack_position.get())),
+            Some(n) => self.write(&format!("mov [rbp-{}], {}",variable.data.stack_position.get(),n))
         }
         
 
     }
-    fn generate_expr_in_rax(&mut self, expr: ast::Expr){
+    fn generate_scope(&mut self, scope: ast::Scope){
+        self.write("push rbp");
+        self.write("mov rbp, rsp");
+
+        for stmt in scope.body{
+            self.evaluate_stmt(stmt);
+        }
+        self.write("leave");
+    }
+    fn generate_expr(&mut self, expr: Expr)->Option<i32> {
+        match expr{
+            Expr::Atom(Atom::IntLiteral(node)) => Some(node),
+            Expr::BinaryExpr(node)=> {return self.generate_binary_expr(node);}
+            Expr::Atom(Atom::VariableLiteral(var)) => {self.generate_var_expr(&var); return None},
+            Expr::Atom(Atom::BoolLiteral(bool)) => Some(bool as i32),
+            _ => todo!()
+            
+        }
+    }
+
+    //return value goes in rax
+    
+    fn generate_expr_in_rax(&mut self, expr: Expr){
         let result = self.generate_expr(expr);
         match result {
             Some(n) => self.write(format!("mov rax, {}",n).as_str()),
@@ -116,24 +129,16 @@ main:
             
         }
     }
-    fn generate_expr(&mut self, expr: ast::Expr)->Option<i64> {
-        match expr{
-            ast::Expr::IntLiteral(node) => Some(node.value),
-            ast::Expr::BinaryExpr(node)=> {return self.generate_binary_expr(node);}
-            ast::Expr::VarLiteral(var) => {self.generate_var_expr(var); return None},
-            ast::Expr::FloatLiteral(_) => todo!()
-            
-        }
+    
+
+    fn generate_var_expr(&mut self, var: &str){
+        self.write(format!("mov rax, [rbp-{}]",self.variable_map[var]).as_str());
     }
 
-    fn generate_var_expr(&mut self, var: ast::VarLiteral){
-        self.write(format!("mov rax, [rbp-{}]",self.variable_map[var.name.as_str()]).as_str());
-    }
-
-    fn generate_binary_expr(&mut self, expr: ast::BinaryExpr)->Option<i64>{
+    fn generate_binary_expr(&mut self, expr: BinaryExpr)->Option<i32>{
         let right_result = self.generate_expr(*expr.right);// this is in eax
         let mut right_evaluated = false;
-        let mut right_number: i64 = 0;
+        let mut right_number: i32 = 0;
         match right_result{
             None => {
                 self.write("mov rcx, rax");
@@ -145,7 +150,7 @@ main:
         }
         let left_result = self.generate_expr(*expr.left); //this is in eax and can stay
         let mut left_evaluated = false;
-        let mut left_number: i64 = 0;
+        let mut left_number: i32 = 0;
         match left_result{
             None => {
             },
@@ -156,35 +161,35 @@ main:
         }
 
         if right_evaluated && left_evaluated{
-            match expr.op.as_str(){
-                "+" => return Some(left_number + right_number),
-                "-" => return Some(left_number - right_number),
-                "*" => return Some(left_number * right_number),
-                _ => {return None;}
+            match expr.op{
+                OperationType::Add => return Some(left_number + right_number),
+                OperationType::Subtract => return Some(left_number - right_number),
+                OperationType::Multiply => return Some(left_number * right_number),
+                _ => todo!()
 
             }
         } else if right_evaluated{
-            match expr.op.as_str(){
-                "+" => self.write(format!("add rax, {}",right_number).as_str()),
-                "-" => self.write(format!("sub rax, {}",right_number).as_str()),
-                "*" => self.write(format!("mul {}",right_number).as_str()), 
-                _ => {}
+            match expr.op{
+                OperationType::Add => self.write(format!("add rax, {}",right_number).as_str()),
+                OperationType::Subtract => self.write(format!("sub rax, {}",right_number).as_str()),
+                OperationType::Multiply => self.write(format!("mul {}",right_number).as_str()), 
+                _ => todo!()
             }
             return None
         } else if left_evaluated{
             self.write("mov rax, rcx");
-            match expr.op.as_str(){
-                "+" => self.write(format!("add rax, {}",right_number).as_str()),
-                "-" => self.write(format!("sub rax, {}",right_number).as_str()),
-                "*" => self.write(format!("mul {}",right_number).as_str()), 
+            match expr.op{
+                OperationType::Add => self.write(format!("add rax, {}",right_number).as_str()),
+                OperationType::Subtract => self.write(format!("sub rax, {}",right_number).as_str()),
+                OperationType::Multiply => self.write(format!("mul {}",right_number).as_str()), 
                 _ => {}
             }
             return None
         }else{
-        match expr.op.as_str(){
-            "+" => self.write("add rax, rcx"),
-            "-" => self.write("sub rax, rcx"),
-            "*" => self.write("mul rcx"),
+        match expr.op{
+            OperationType::Add => self.write("add rax, rcx"),
+            OperationType::Subtract => self.write("sub rax, rcx"),
+            OperationType::Multiply=> self.write("mul rcx"),
             _ => {} 
         }
         return None

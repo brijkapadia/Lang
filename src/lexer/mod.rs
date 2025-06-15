@@ -120,6 +120,7 @@ impl Tokenizer{
 
     fn tokenize_single_char(&mut self) -> E::Result<bool>{
         match self.first()?{
+            '(' => self.tokens.push_new_token(TokenType::OpenParen),
             ')' => self.tokens.push_new_token(TokenType::CloseParen),
             '{' => self.tokens.push_new_token(TokenType::OpenCurl),
             '}' => self.tokens.push_new_token(TokenType::CloseCurl),

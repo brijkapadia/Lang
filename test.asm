@@ -13,15 +13,5 @@ exit:
 main:
     push rbp
     mov rbp, rsp
-	push rbp
-	mov rbp, rsp
 	sub rsp, 4
-	mov dword [rbp-4], 9
-	push rbp
-	mov rbp, rsp
-	sub rsp, 4
-	mov dword [rbp-8], 10
-	leave
-	leave
-	leave 
-	ret
+	mov dword [rbp-4], 0

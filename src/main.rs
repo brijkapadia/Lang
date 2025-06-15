@@ -4,15 +4,18 @@ mod lexer;
 
 mod parser;
 mod ast;
-// mod compiler;
+//mod compiler;
 mod error;
 use std::env;
 // use std::fs;
 use error as E;
 
+
 fn main() -> E::Result<()>{
     //env::set_var("RUST_BACKTRACE", "1");  
-    let file_name = env::args().nth(1).ok_or::<E::Error>("No file name was provided".into())?;
+    //let file_name = env::args().nth(1).ok_or::<E::Error>("No file name was provided".into())?;
+
+    let file_name = "code.txt";
     let src = reader::Reader::new(&file_name)?;
 
     let mut tokenizer = lexer::Tokenizer::new(src);
@@ -29,8 +32,10 @@ fn main() -> E::Result<()>{
     println!("{:?}",program);
 
 
-    return Ok(());
+    //return Ok(());
 
-    // // let mut compiler = compiler::Compiler::new("test");
-    // // compiler.compile(program);
+    // let mut compiler = compiler::Compiler::new("test");
+    // compiler.compile(program);
+
+    return Ok(());
 }

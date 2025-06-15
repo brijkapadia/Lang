@@ -5,9 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         
-        
         {
-            "program": "C:\\Users\\brijk\\OneDrive\\Desktop\\Lang\\Lang\\target\\debug\\Lang.exe"
+            "name": "(Windows) Launch",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/target/debug/Lang.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
         }
     ]
 

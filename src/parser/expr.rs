@@ -5,43 +5,40 @@ use crate::tokens::TokenData;
 use crate::tokens::TokenList;
 use crate::tokens::TokenType;
 use crate::tokens::Token;
-//use crate::parser::Identfiers;
+use crate::parser::Variables;
 
 use crate::error::Result as R;
 
+use std::rc::Rc;
+
 pub struct ExprParser<'a>{
     tokens: &'a mut TokenList,
-    //identifiers: &'a Identfiers
+    variables: &'a Variables<'a>
 }
 
 impl<'a> ExprParser<'a>{
-    pub fn new(tokens: &'a mut TokenList) -> Self{
-        Self {tokens}
+    pub fn new(variables: &'a Variables<'a>, tokens: &'a mut TokenList) -> Self{
+        Self {variables,tokens}
     }
 
     pub fn parse_expr(&mut self, prev_binding_power: f32) -> R<Expr>{
         let left_token = self.tokens.pop_token();
         if let TokenType::OpenParen = left_token.token_type{
-            self.parse_expr(0.0)?;
-
+            let left_expression = self.parse_expr(0.0)?;
+            self.tokens.pop_token();
+            return Ok(left_expression);
         }
+
         let mut left_expression = 
-        match left_token.token_type{
-            TokenType::OpenParen => {
-                let result = self.parse_expr(0.0)?;
-                self.tokens.pop_token();
-                result
-            }
-            _ => match left_token.token_data {
-                TokenData::Identifier(identifier) => self.parse_identifier(identifier)?,
-                TokenData::Integer(int) => Expr::new_int_literal(int),
-                TokenData::Float(float) => Expr::new_float_literal(float),
-                TokenData::Boolean(bool) => Expr::new_bool_literal(bool),
-                TokenData::Character(char) => Expr::new_char_literal(char),
-                TokenData::String(str) => Expr::new_string_literal(str),
-                TokenData::Operation(op) => return Err(format!("Found operation {:?} at the start of an expression",op).into()),
-                TokenData::None => return Err("Found token with no data".into())
-            }
+        match left_token.token_data {
+            TokenData::Identifier(identifier) => self.parse_identifier(identifier)?,
+            TokenData::Integer(int) => Expr::new_int_literal(int),
+            TokenData::Float(float) => Expr::new_float_literal(float),
+            TokenData::Boolean(bool) => Expr::new_bool_literal(bool),
+            TokenData::Character(char) => Expr::new_char_literal(char),
+            TokenData::String(str) => Expr::new_string_literal(str),
+            TokenData::Operation(op) => return Err(format!("Found operation {:?} at the start of an expression",op).into()),
+            TokenData::None => return Err("Found token with no data".into())
         };
 
         loop{
@@ -71,10 +68,13 @@ impl<'a> ExprParser<'a>{
     }
 
     fn parse_function(&self){
-        todo!("Not implimented")
+        todo!("Function parser implimented")
     }
 
-    fn parse_variable(&self, var_name: String) -> R<Expr>{
-        Ok(Expr::new_var_literal(var_name))
+    fn parse_variable(&self, name: String) -> R<Expr>{
+        match self.variables.get_variable_by_name(&name){
+            Some(data) => Ok(Expr::new_var_literal(Rc::clone(data))),
+            None => Err(format!("Variable {} not defined",name).into())
+        }
     }
 }

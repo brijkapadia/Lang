@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
 use super::parser::Expr;
 
@@ -19,8 +19,8 @@ impl Scope{
 
 #[derive(Debug)]
 pub enum Stmt {
-    VarDec(VarDec),
-    VarUpdate(VarUpdate),
+    VariableDeclaration(VariableDeclaration),
+    VariableUpdate(VariableUpdate),
 
     Scope(Scope),
 
@@ -33,32 +33,32 @@ pub enum Stmt {
 }
 
 impl Stmt{
-    pub fn new_var_dec(name: Rc<String>, value: Option<Expr>) -> Self{
-        Self::VarDec(VarDec::new(name, value))
+    pub fn new_var_dec(data: Rc<VariableData>, value: Expr) -> Self{
+        Self::VariableDeclaration(VariableDeclaration{data, value})
     }
 }
 
 #[derive(Debug)]
-pub struct VarDec {
-    pub name: Rc<String>,
-    pub value: Option<Expr>
-}
-
-impl VarDec{
-    pub fn new(name: Rc<String>, value: Option<Expr>) -> Self{
-        Self{name, value: value}
-    }
+pub struct VariableData{
+    pub variable_bytes: usize,
+    pub stack_position: Cell<usize>
 }
 
 #[derive(Debug)]
-pub struct VarUpdate {
-    pub name: String,
+pub struct VariableDeclaration{
+    pub data: Rc<VariableData>,
     pub value: Expr
 }
 
-impl VarUpdate{
-    pub fn new(name: String, value: Expr) -> Self{
-        Self{name, value}
+#[derive(Debug)]
+pub struct VariableUpdate {
+    pub data: Rc<VariableData>,
+    pub value: Expr
+}
+
+impl VariableUpdate{
+    pub fn new(data: Rc<VariableData>, value: Expr) -> Self{
+        Self{data, value}
     }
 }
 
@@ -67,7 +67,6 @@ pub struct If {
     pub condition: Expr,
     pub scope: Scope
 }
-
 
 impl If{
     pub fn new(condition: Expr, scope: Scope) -> Self{

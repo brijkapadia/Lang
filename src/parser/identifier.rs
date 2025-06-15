@@ -1,31 +1,29 @@
-use std::collections::{HashSet,HashMap};
+use std::collections::{HashMap};
 use std::rc::Rc;
 
-struct Variables(HashSet<Rc<String>>);
+use crate::ast::VariableData as Variable;
 
-struct Functions(HashSet<Rc<String>>);
 
-struct ScopeIdentifiers{
-    variables: Variables,
-    functions: Functions
+
+pub struct Variables<'a>{
+    variables_in_scope: HashMap<Box<str>,Rc<Variable>>,
+    variables_out_scope: Option<&'a Variables<'a>>
 }
 
-
-enum Identfiers{
-    Variable{
-        name: Rc<String>
-    },
-    Function{
-        name: String
+impl<'a> Variables<'a> {
+    pub fn new(variables_out_scope: Option<&'a Self>) -> Self{
+        Self { variables_in_scope: HashMap::new(), variables_out_scope}
     }
-}
-
-impl Identfiers{
-    fn new_var(name: Rc<String>) -> Self{
-        return Self::Variable{name}
+    pub fn get_variable_by_name(&self, name: &str) -> Option<&Rc<Variable>>{
+        match self.variables_in_scope.get(name){
+            Some(var) => Some(var),
+            None => match self.variables_out_scope{
+                Some(variables) => variables.get_variable_by_name(name),
+                None => None
+            }
+        }
     }
-    
-    fn new_fn(name: String) -> Self{
-        return Self::Function{name}
+    pub fn add_variable_by_name(&mut self, name: Box<str>, variable: Rc<Variable>){
+        self.variables_in_scope.insert(name, variable);
     }
 }

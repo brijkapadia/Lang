@@ -7,11 +7,16 @@ use crate::tokens::Token;
 use crate::error::Result as R;
 mod expr;
 mod expr_types;
-//mod identifier;
+mod identifier;
 
 pub use expr_types::Expr;
 pub use expr_types::OperationType;
+pub use expr_types::Atom;
+pub use expr_types::BinaryExpr;
+pub use identifier::{Variables};
 
+use crate::ast::VariableData;
+use std::cell::Cell;
 use std::rc::Rc;
 
 pub struct Parser{
@@ -46,119 +51,115 @@ impl Parser{
 
     pub fn produce_ast(&mut self) -> R<()>{
         while self.not_eof() {
-            let parse = self.parse_stmt()?;
+            let mut variables = Variables::new(None);
+            let parse = self.parse_stmt(&mut variables)?;
             self.program_scope.push(parse);
         }
         Ok(())
     }
 
-    fn parse_expr(&mut self) -> R<expr_types::Expr>{
-        let mut expr_parser = expr::ExprParser::new(&mut self.tokens);
+    fn parse_expr(&mut self,variables: &Variables) -> R<expr_types::Expr>{
+        let mut expr_parser = expr::ExprParser::new(variables, &mut self.tokens);
         expr_parser.parse_expr(0.0)
     }
 
-    fn parse_stmt(&mut self) -> R<ast::Stmt>{
+    fn parse_stmt(&mut self,variables: &mut Variables) -> R<ast::Stmt>{
         let token_type = self.current_token_type_guarantee()?;
         match token_type{
-            TokenType::Let => self.parse_variable_declaration(),
-            TokenType::Identifier => self.parse_identifier(),
+            TokenType::Let => self.parse_variable_declaration(variables),
+            TokenType::Identifier => self.parse_identifier(variables),
 
-            TokenType::OpenCurl => self.parse_scope().map(|x| ast::Stmt::Scope(x)),
+            TokenType::OpenCurl => self.parse_scope(variables).map(|x| ast::Stmt::Scope(x)),
 
-            TokenType::If => self.parse_if(),
-            TokenType::Elif => self.parse_elif(),
-            TokenType::Else => self.parse_else(),
+            TokenType::If => self.parse_if(variables),
+            TokenType::Elif => self.parse_elif(variables),
+            TokenType::Else => self.parse_else(variables),
 
-            TokenType::While => self.parse_while(),
-            _ => self.parse_expr().map(|x| ast::Stmt::Expr(x))
+            TokenType::While => self.parse_while(variables),
+            _ => self.parse_expr(variables).map(|x| ast::Stmt::Expr(x))
         }
         
     }
-    fn parse_variable_declaration(&mut self) -> R<ast::Stmt>{
+    fn parse_variable_declaration(&mut self, variables: &mut Variables) -> R<ast::Stmt>{
         self.expect(TokenType::Let)?;
 
-        let var = self.consume();
+        let var: Token = self.consume();
 
-        let var_name = Rc::new(
+        let var_name =
             match var.token_data {
             tokens::TokenData::Identifier(name) => name,
             _ => return Err("Expected an Identifier after let".into())
             
-        });
-        //self.identifiers.push(Identfiers::new_var(Rc::clone(&var_name)));
-
-        if matches!(self.current_token_guarantee()?.token_type,TokenType::EOL){
-            self.consume();
-            Ok(ast::Stmt::new_var_dec(Rc::clone(&var_name), None))
-        }
-        else if matches!(self.current_token_guarantee()?.token_type,TokenType::Assign){
-            self.consume();
-            let statement = ast::Stmt::new_var_dec(Rc::clone(&var_name), Some(self.parse_expr()?));
-            self.consume(); //get rid of last semicolon
+        };
+        if let TokenType::Assign = self.current_token_guarantee()?.token_type{
+            self.expect(TokenType::Assign)?;
+            let data = Rc::new(VariableData {variable_bytes: 4,stack_position: Cell::new(0)});
+            variables.add_variable_by_name(var_name.into(), Rc::clone(&data));
+            let statement: ast::Stmt = ast::Stmt::new_var_dec(data, self.parse_expr(variables)?);
+            self.expect(TokenType::EOL)?;
             Ok(statement)
         }else{
             Err("Never found \"=\" after variable declaration".into())
         }
     }
 
-    fn parse_identifier(&mut self) -> R<ast::Stmt>{
+    fn parse_identifier(&mut self,variables: &Variables) -> R<ast::Stmt>{
         if let TokenData::Identifier(name) = self.consume().token_data{
-            // if !self.variables.contains(&identifier.value){
-            //     panic!("Tried to write to a variable that does not exist yet. Add \"let\" before")
-            // } 
-            if !matches!(self.consume().token_type,TokenType::Assign){
-                return Err("Expected \"=\" after variable".into());
-            }
-            let value: Expr = self.parse_expr()?;
-            if !matches!(self.consume().token_type,TokenType::EOL){
-                return Err("Did not find \";\" at end of line".into());
-            } // gets rid of ;
+            let Some(data) = variables.get_variable_by_name(&name) else{
+                return Err("Tried to write to a variable that does not exist yet. Add \"let\" before".into())
+            };
 
-            Ok(ast::Stmt::VarUpdate(ast::VarUpdate::new(name, value)))
+            let data = Rc::clone(data);
+
+            self.expect(TokenType::Assign)?;
+            let value: Expr = self.parse_expr(variables)?;
+            self.expect(TokenType::EOL)?;
+
+            Ok(ast::Stmt::VariableUpdate(ast::VariableUpdate {data, value}))
         }else{
             panic!()
         }
     }
 
-    fn parse_scope(&mut self) -> R<ast::Scope>{
+    fn parse_scope(&mut self,variables: &mut Variables) -> R<ast::Scope>{
         self.consume(); //first {
 
         let mut scope = ast::Scope::new();
 
         while !matches!(self.current_token_type_guarantee()?,tokens::TokenType::CloseCurl){
-            scope.push(self.parse_stmt()?);
+            scope.push(self.parse_stmt(variables)?);
         }
         self.consume();        
        Ok(scope)
     }
 
-    fn parse_if(&mut self) -> R<ast::Stmt>{
+    fn parse_if(&mut self,variables: &mut Variables) -> R<ast::Stmt>{
         self.consume(); //consumes if
 
-        let condition = self.parse_expr()?;
+        let condition = self.parse_expr(variables)?;
         
-        let if_scope = self.parse_scope()?;
+        let if_scope = self.parse_scope(variables)?;
         Ok(ast::Stmt::If(ast::If::new(condition,if_scope)))
     }
-    fn parse_elif(&mut self) -> R<ast::Stmt>{
+    fn parse_elif(&mut self,variables: &mut Variables) -> R<ast::Stmt>{
         self.consume(); //consumes if
 
-        let condition = self.parse_expr()?;
-        let elif_scope = self.parse_scope()?;
+        let condition = self.parse_expr(variables)?;
+        let elif_scope = self.parse_scope(variables)?;
         Ok(ast::Stmt::Elif(ast::Elif::new(condition,elif_scope)))
     }
-    fn parse_while(&mut self) -> R<ast::Stmt>{
+    fn parse_while(&mut self,variables: &mut Variables) -> R<ast::Stmt>{
         self.consume(); //consumes while
 
-        let condition = self.parse_expr()?;
-        let while_scope = self.parse_scope()?;
+        let condition = self.parse_expr(variables)?;
+        let while_scope = self.parse_scope(variables)?;
         let x = ast::Stmt::While(ast::While::new(condition,while_scope));
         Ok(x)
     }
-    fn parse_else(&mut self) -> R<ast::Stmt>{
+    fn parse_else(&mut self,variables: &mut Variables) -> R<ast::Stmt>{
         self.consume(); //consumes else
 
-        let else_scope = self.parse_scope()?;
+        let else_scope = self.parse_scope(variables)?;
         Ok(ast::Stmt::Else(ast::Else::new(else_scope)))
     }
 

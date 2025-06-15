@@ -1,77 +1,13 @@
-Scope { 
-    body: [
-        VarDec(VarDec{
-            name: "iterations", 
-            value: Some(Atom(IntLiteral(0)))
-        }), 
-        While(While{
-            condition: BinaryExpr(BinaryExpr{
-                left: Atom(VarLiteral("num")), 
-                right: Atom(IntLiteral(1)),
-                op: Greater
-            }), 
-            scope: Scope{
-                body:[
-                    If(If{
-                        condition: BinaryExpr(BinaryExpr{
-                            left: Atom(VarLiteral("num")), 
-                            right: BinaryExpr(BinaryExpr{
-                                left: Atom(IntLiteral(2)), 
-                                right: Atom(IntLiteral(0)), 
-                                op: Eq
-                            }), 
-                            op: Mod
-                        }),
-                        scope: Scope{
-                            body: [
-                                VarUpdate(VarUpdate{
-                                    name: "num",
-                                    value: BinaryExpr(BinaryExpr{
-                                        left: Atom(VarLiteral("num")), 
-                                        right: Atom(IntLiteral(2)), 
-                                        op: Divide
-                                    })
-                                })
-                            ]
-                        }
-                    }), 
-                    Elif(Elif{
-                        condition: BinaryExpr(BinaryExpr{
-                            left: Atom(VarLiteral("num")), 
-                            right: BinaryExpr(BinaryExpr{
-                                left: Atom(IntLiteral(2)), 
-                                right: Atom(IntLiteral(1)), 
-                                op: Eq
-                            }), 
-                            op: Mod
-                        }), 
-                        scope: Scope{
-                            body: [
-                                VarUpdate(VarUpdate{
-                                    name: "num", 
-                                    value: BinaryExpr(BinaryExpr{
-                                        left: BinaryExpr(BinaryExpr{
-                                            left: Atom(IntLiteral(3)), 
-                                            right: Atom(VarLiteral("num")), 
-                                            op: Multiply
-                                        }), 
-                                        right: Atom(IntLiteral(1)), 
-                                        op: Add
-                                    })
-                                })
-                            ]
-                        }
-                    }),
-                    VarUpdate(VarUpdate{
-                        name: "iterations", 
-                        value: BinaryExpr(BinaryExpr{
-                            left: Atom(VarLiteral("iterations")), 
-                            right: Atom(IntLiteral(1)), 
-                            op: Add
-                        })
-                    })
-                ]
-            }
-        })
-    ]
+let iterations = 0;
+while num > 1{
+    if num % 2 == 0{
+        num = num/2;
+    }
+    elif num%2 == 1{
+        num = 3*(num + 1);
+    }
+    iterations = iterations+1;
 }
+
+
+exit = iterations;

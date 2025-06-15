@@ -1,3 +1,6 @@
+use crate::ast::VariableData;
+use std::rc::Rc;
+
 #[derive(Debug)]
 pub enum Expr {
     BinaryExpr(BinaryExpr), // like +, -, *, /
@@ -17,8 +20,8 @@ impl Expr{
     pub fn new_bool_literal(value: bool) -> Expr{
         Expr::Atom(Atom::BoolLiteral(value))
     }
-    pub fn new_var_literal(name: String) -> Expr{
-        Expr::Atom(Atom::VarLiteral(name))
+    pub fn new_var_literal(data: Rc<VariableData>) -> Expr{
+        Expr::Atom(Atom::VariableLiteral(data))
     }
     pub fn new_char_literal(value: char) -> Expr{
         Expr::Atom(Atom::CharLiteral(value))
@@ -29,11 +32,11 @@ impl Expr{
 }
 
 #[derive(Debug)]
-enum Atom{
+pub enum Atom{
     IntLiteral(i32),
     FloatLiteral(f32),
     BoolLiteral(bool),
-    VarLiteral(String),
+    VariableLiteral(Rc<VariableData>),
     CharLiteral(char),
     StringLiteral(Box<str>)
 }
